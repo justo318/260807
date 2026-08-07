@@ -1,0 +1,46 @@
+name: 타기관 복지·청년 공고 자동 수집 크롤러
+
+on:
+  schedule:
+    # 매주 월요일 오전 9:00 (KST) = 일요일 24:00 / 월요일 00:00 (UTC)
+    - cron: '0 0 * * 1'
+  workflow_dispatch: # 수동 실행 지원
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 3.11 환경 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 의존성 패키지 설치
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 크롤러 실행 (엑셀 저장)
+        run: |
+          python main.py
+
+      - name: 결과 엑셀 파일 저장소 커밋 및 푸시
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add 타기관벤치마킹_*.xlsx
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update: 공고 수집 엑셀 생성 [$(date +'%Y-%m-%d')]" && git push)
+
+      - name: 결과 엑셀 파일 Artifact 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: notice-benchmark-excel
+          path: 타기관벤치마킹_*.xlsx
+          retention-days: 30
